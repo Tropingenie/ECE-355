@@ -218,6 +218,37 @@ void TIM2_IRQHandler()
 	}
 }
 
+
+void freq_calc(void){
+	//
+			if(first_edge == TRUE){
+			// 1. If this is the first edge:
+				first_edge = FALSE;
+			//	- Clear count register (TIM2->CNT).
+				TIM2->CNT = 0;
+			//	- Start timer (TIM2->CR1).
+				TIM2->CR1 |= TIM_CR1_CEN;
+			}else{
+			//    Else (this is the second edge):
+				first_edge = TRUE;
+			//	- Stop timer (TIM2->CR1).
+				TIM2->CR1 &= ~TIM_CR1_CEN;
+			//	- Read out count register (TIM2->CNT).
+				uint32_t count = TIM2->CNT;
+			//	- Calculate signal period and frequency.
+				double freq = (double)CLOCKSPEED/count; // Hz
+				double period = 1000000/freq; // microseconds
+			//	- Print calculated values to the console.
+				trace_printf("%d Hz\n", (uint32_t)(freq < 0 ? (freq - 0.5) : (freq + 0.5)));
+				trace_printf("%d microseconds\n", (uint32_t)(period < 0 ? (period - 0.5) : (period + 0.5)));
+			//	  NOTE: Function trace_printf does not work
+			//	  with floating-point numbers: you must use
+			//	  "unsigned int" type to print your signal
+			//	  period and frequency.
+			}
+}
+
+
 void EXTI0_1_IRQHandler()
 {
 	/* Check if EXTI0 interrupt pending flag is indeed set */
@@ -241,6 +272,7 @@ void EXTI0_1_IRQHandler()
 	}
 }
 
+
 /* This handler is declared in system/src/cmsis/vectors_stm32f0xx.c */
 void EXTI2_3_IRQHandler()
 {
@@ -249,32 +281,8 @@ void EXTI2_3_IRQHandler()
 	/* Check if EXTI2 interrupt pending flag is indeed set */
 	if ((EXTI->PR & EXTI_PR_PR2) != 0)
 	{
-		//
-		if(first_edge == TRUE){
-		// 1. If this is the first edge:
-			first_edge = FALSE;
-		//	- Clear count register (TIM2->CNT).
-			TIM2->CNT = 0;
-		//	- Start timer (TIM2->CR1).
-			TIM2->CR1 |= TIM_CR1_CEN;
-		}else{
-		//    Else (this is the second edge):
-			first_edge = TRUE;
-		//	- Stop timer (TIM2->CR1).
-			TIM2->CR1 &= ~TIM_CR1_CEN;
-		//	- Read out count register (TIM2->CNT).
-			uint32_t count = TIM2->CNT;
-		//	- Calculate signal period and frequency.
-			double freq = (double)CLOCKSPEED/count; // Hz
-			double period = 1000000/freq; // microseconds
-		//	- Print calculated values to the console.
-			trace_printf("%d Hz\n", (uint32_t)(freq < 0 ? (freq - 0.5) : (freq + 0.5)));
-			trace_printf("%d microseconds\n", (uint32_t)(period < 0 ? (period - 0.5) : (period + 0.5)));
-		//	  NOTE: Function trace_printf does not work
-		//	  with floating-point numbers: you must use
-		//	  "unsigned int" type to print your signal
-		//	  period and frequency.
-		}
+		freq_calc();
+
 		// 2. Clear EXTI2 interrupt pending flag (EXTI->PR).
 		// NOTE: A pending register (PR) bit is cleared
 		// by writing 1 to it.
