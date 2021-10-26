@@ -62,6 +62,7 @@ void myEXTI_Init(void);
 // (say, timerTriggered = 0 or 1) to indicate
 // whether TIM2 has started counting or not.
 volatile char first_edge = TRUE;
+volatile char measure_pa1 = FALSE;
 
 int
 main(int argc, char* argv[])
@@ -76,7 +77,7 @@ main(int argc, char* argv[])
 
 	while (1)
 	{
-		// Nothing is going on here...
+		// Smoke pot
 	}
 
 	return 0;
@@ -239,6 +240,7 @@ void freq_calc(void){
 				double freq = (double)CLOCKSPEED/count; // Hz
 				double period = 1000000/freq; // microseconds
 			//	- Print calculated values to the console.
+			// TODO: Write to display instead of trace_printf
 				trace_printf("%d Hz\n", (uint32_t)(freq < 0 ? (freq - 0.5) : (freq + 0.5)));
 				trace_printf("%d microseconds\n", (uint32_t)(period < 0 ? (period - 0.5) : (period + 0.5)));
 			//	  NOTE: Function trace_printf does not work
@@ -254,6 +256,8 @@ void EXTI0_1_IRQHandler()
 	/* Check if EXTI0 interrupt pending flag is indeed set */
 	if ((EXTI->PR & EXTI_PR_PR0) != 0){
 		trace_printf("Button press detected\n");
+		// Logical NOT the measure pa1 variable
+		(measure_pa1 == TRUE) ? (measure_pa1 = FALSE) : (measure_pa1 = TRUE);
 
 		// 2. Clear EXTI1 interrupt pending flag (EXTI->PR).
 		// NOTE: A pending register (PR) bit is cleared
@@ -264,6 +268,9 @@ void EXTI0_1_IRQHandler()
 	/* Check if EXTI1 interrupt pending flag is indeed set */
 	if ((EXTI->PR & EXTI_PR_PR1) != 0){
 		// Run the frequency calculator function here
+		if (measure_pa1 == TRUE){
+			freq_calc();
+		}
 
 		// 2. Clear EXTI1 interrupt pending flag (EXTI->PR).
 		// NOTE: A pending register (PR) bit is cleared
@@ -281,8 +288,9 @@ void EXTI2_3_IRQHandler()
 	/* Check if EXTI2 interrupt pending flag is indeed set */
 	if ((EXTI->PR & EXTI_PR_PR2) != 0)
 	{
-		freq_calc();
-
+		if (measure_pa1 == FALSE){
+			freq_calc();
+		}
 		// 2. Clear EXTI2 interrupt pending flag (EXTI->PR).
 		// NOTE: A pending register (PR) bit is cleared
 		// by writing 1 to it.
