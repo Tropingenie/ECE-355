@@ -136,6 +136,43 @@ void myTIM2_Init()
 
 void myEXTI_Init()
 {
+	/// EXTI0 Init
+
+	/* Map EXTI0 line to PA0 */
+	// Relevant register: SYSCFG->EXTICR[0]
+	SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI0_PA;
+
+	/* EXTI1 line interrupts: set rising-edge trigger */
+	// Relevant register: EXTI->RTSR
+	EXTI->RTSR |= EXTI_RTSR_TR0;
+
+	/* Unmask interrupts from EXTI2 line */
+	// Relevant register: EXTI->IMR
+	EXTI->IMR |= EXTI_IMR_MR0;
+
+	// NVIC set priority is same as EXTI1 so it's set there (below)
+
+	/// EXTI1 Init
+
+	/* Map EXTI1 line to PA1 */
+	// Relevant register: SYSCFG->EXTICR[0]
+	SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI1_PA;
+
+	/* EXTI1 line interrupts: set rising-edge trigger */
+	// Relevant register: EXTI->RTSR
+	EXTI->RTSR |= EXTI_RTSR_TR1;
+
+	/* Unmask interrupts from EXTI2 line */
+	// Relevant register: EXTI->IMR
+	EXTI->IMR |= EXTI_IMR_MR1;
+
+	/* Assign EXTI2 interrupt priority = 0 in NVIC */
+	// Relevant register: NVIC->IP[2], or use NVIC_SetPriority
+	NVIC_SetPriority(EXTI0_1_IRQn, 0);
+
+
+	/// EXTI2 Init
+
 	/* Map EXTI2 line to PA2 */
 	// Relevant register: SYSCFG->EXTICR[0]
 	SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI2_PA;
@@ -151,6 +188,13 @@ void myEXTI_Init()
 	/* Assign EXTI2 interrupt priority = 0 in NVIC */
 	// Relevant register: NVIC->IP[2], or use NVIC_SetPriority
 	NVIC_SetPriority(EXTI2_3_IRQn, 0);
+
+
+// Enable all interrups
+
+	/* Enable EXTI2 interrupts in NVIC */
+	// Relevant register: NVIC->ISER[0], or use NVIC_EnableIRQ
+	NVIC_EnableIRQ(EXTI0_1_IRQn);
 
 	/* Enable EXTI2 interrupts in NVIC */
 	// Relevant register: NVIC->ISER[0], or use NVIC_EnableIRQ
@@ -174,6 +218,28 @@ void TIM2_IRQHandler()
 	}
 }
 
+void EXTI0_1_IRQHandler()
+{
+	/* Check if EXTI0 interrupt pending flag is indeed set */
+	if ((EXTI->PR & EXTI_PR_PR0) != 0){
+		trace_printf("Button press detected\n");
+
+		// 2. Clear EXTI1 interrupt pending flag (EXTI->PR).
+		// NOTE: A pending register (PR) bit is cleared
+		// by writing 1 to it.
+		EXTI->PR |= EXTI_PR_PR0;
+	}
+
+	/* Check if EXTI1 interrupt pending flag is indeed set */
+	if ((EXTI->PR & EXTI_PR_PR1) != 0){
+		// Run the frequency calculator function here
+
+		// 2. Clear EXTI1 interrupt pending flag (EXTI->PR).
+		// NOTE: A pending register (PR) bit is cleared
+		// by writing 1 to it.
+		EXTI->PR |= EXTI_PR_PR1;
+	}
+}
 
 /* This handler is declared in system/src/cmsis/vectors_stm32f0xx.c */
 void EXTI2_3_IRQHandler()
@@ -212,7 +278,7 @@ void EXTI2_3_IRQHandler()
 		// 2. Clear EXTI2 interrupt pending flag (EXTI->PR).
 		// NOTE: A pending register (PR) bit is cleared
 		// by writing 1 to it.
-		EXTI->PR |= EXTI_PR_PR1;
+		EXTI->PR |= EXTI_PR_PR2;
 	}
 }
 
