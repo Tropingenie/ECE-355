@@ -72,11 +72,15 @@ main(int argc, char* argv[])
 	trace_printf("System clock: %u Hz\n", SystemCoreClock);
 
 	myGPIOA_Init();		/* Initialize I/O port PA */
+	myGPIOB_Init();		/* Initialize I/O port PB */
 	myTIM2_Init();		/* Initialize timer TIM2 */
 	myEXTI_Init();		/* Initialize EXTI */
+	myLCD_init();		/* Initialize LCD */
+
 
 	while (1)
 	{
+		myLCD_Print();
 		// Smoke pot
 	}
 
@@ -100,6 +104,126 @@ void myGPIOA_Init()
 	GPIOA->PUPDR &= ~(GPIO_MODER_MODER2_0);
 }
 
+void myGPIOB_Init()
+{
+	/* Enable clock for GPIOB peripheral */
+	// Relevant register: RCC->AHBENR
+	RCC->AHBENR |= RCC_AHBENR_GPIOBEN;
+
+	/* Configure PB7 as input */
+	// Relevant register: GPIOB->MODER
+	GPIOB->MODER &= ~(GPIO_MODER_MODER7_0);
+
+	/* Ensure no pull-up/pull-down for PB7 */
+	// Relevant register: GPIOB->PUPDR
+	GPIOB->PUPDR &= ~(GPIO_MODER_MODER7_0);
+
+	/* Configure PB4-6,8-15 as output */
+	// Relevant register: GPIOB->MODER
+	GPIOB->MODER |= (GPIO_MODER_MODER4_0 | GPIO_MODER_MODER5_0 | GPIO_MODER_MODER6_0 | GPIO_MODER_MODER8_0 | GPIO_MODER_MODER9_0 | GPIO_MODER_MODER10_0 | GPIO_MODER_MODER11_0 | GPIO_MODER_MODER12_0 | GPIO_MODER_MODER13_0 | GPIO_MODER_MODER14_0 | GPIO_MODER_MODER15_0);
+
+	/* Ensure no pull-up/pull-down for PB4-6,8-15  */
+	// Relevant register: GPIOB->PUPDR
+	GPIOB->PUPDR &= ~(GPIO_MODER_MODER4_0 | GPIO_MODER_MODER5_0 | GPIO_MODER_MODER6_0 | GPIO_MODER_MODER8_0 | GPIO_MODER_MODER9_0 | GPIO_MODER_MODER10_0 | GPIO_MODER_MODER11_0 | GPIO_MODER_MODER12_0 | GPIO_MODER_MODER13_0 | GPIO_MODER_MODER14_0 | GPIO_MODER_MODER15_0);
+}
+
+void handshake(){
+	// Set PB4 to 1 (assert "Enable")
+	GPIOB->ODR |= GPIO_ODR_4;
+
+	//Wait for PB7 to become 1 ("Done" to be asserted)
+	while ((GPIOB->IDR & GPIO_IDR_7) == 0);
+
+	//Set PB4 to 0 (deassert "Enable")
+	GPIOB->ODR &= ~(GPIO_ODR_4);
+
+	//Wait for PB7 to become 0 ("Done" to be deasserted)
+	while ((GPIOB->IDR & GPIO_IDR_7) != 0);
+}
+
+void myLCD_init(){
+	//Function set
+	// DB5 needs to be set to 1 (PB13=DB5=1)
+	// DL=1 - DDRAM access is performed using 8-bit interface (PB12=DB4=1)
+	// N=1 & F=0 - Two lines of eight characters are displayed (PB11=DB3=1 & PB10=DB2=0)
+	GPIOB->ODR = ((GPIO_ODR_13 |  GPIO_ODR_12 |  GPIO_ODR_11) & ~(GPIO_ODR_10));
+	handshake();
+
+	//Display on/off control
+	// DB3 needs to be set to 1 (PB11=DB3=1)
+	// D=1 - Display is on (PB10=DB2=1)
+	// C=0 & B=0 - Cursor is not displayed, and it is not blinking (PB9=DB1=0 & PB8=DB0=0)
+	GPIOB->ODR = ((GPIO_ODR_11 |  GPIO_ODR_10) & ~(GPIO_ODR_9 | GPIO_ODR_8));
+	handshake();
+
+	//Entry mode set
+	// DB2 needs to be set to 1 (PB10=DB2=1)
+	// I/D=1 - DDRAM address is auto-incremented after each access (PB9=DB1=1)
+	// S=0 - Display is not shifted (PB8=DB0=0)
+	GPIOB->ODR = ((GPIO_ODR_10 |  GPIO_ODR_9) & ~(GPIO_ODR_8));
+	handshake();
+
+	//Clear display
+	// DB0 needs to be set to 1 (PB8=DB0=1)
+	GPIOB->ODR = (GPIO_ODR_8);
+	handshake();
+}
+
+void myLCD_Print(){
+
+	//Write first line
+
+	//LCD instructions - initialize
+	// RS=0 R/W=0 DB7=1 (PB5=0 PB6=0 PB15=DB7=1)
+	GPIOB->ODR = (GPIO_ODR_15 & ~(GPIO_ODR_5 | GPIO_ODR_6));
+	handshake();
+
+	//LCD instructions - write ASCII codes to display
+	// RS=1 R/W=0 DB7-0=ASCII code (PB5=1 PB6=0)
+	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x30<<8);
+	handshake();
+
+	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x31<<8);
+	handshake();
+
+	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x32<<8);
+	handshake();
+
+
+	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x33<<8);
+	handshake();
+
+
+	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x34<<8);
+	handshake();
+
+	//Write second line
+
+	//LCD instructions - initialize
+	// RS=0 R/W=0 DB7=1 DB6=1 (PB5=0 PB6=0 PB15=DB7=1 PB14=DB6=1)
+	GPIOB->ODR = ((GPIO_ODR_15 | GPIO_ODR_14) & ~(GPIO_ODR_5 | GPIO_ODR_6));
+	handshake();
+
+	//LCD instructions - write ASCII codes to display
+	// RS=1 R/W=0 DB7-0=ASCII code (PB5=1 PB6=0)
+	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x39<<8);
+	handshake();
+
+	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x38<<8);
+	handshake();
+
+	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x37<<8);
+	handshake();
+
+	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x36<<8);
+	handshake();
+
+	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x35<<8);
+	handshake();
+
+
+
+}
 
 void myTIM2_Init()
 {
