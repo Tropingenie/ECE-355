@@ -80,7 +80,7 @@ main(int argc, char* argv[])
 
 	while (1)
 	{
-		myLCD_Print();
+//		myLCD_Print(1234, 5678, 3);
 		// Smoke pot
 	}
 
@@ -169,57 +169,143 @@ void myLCD_init(){
 	handshake();
 }
 
-void myLCD_Print(){
+char determine_digits(uint32_t num, char* digits){
 
-	//Write first line
+	// Determine the number of each position
+	digits[0] = digits[1] = digits[2] = digits[3] = 0;
+	while(num >= 1000){
+		num -= 1000;
+		digits[0]++;
+	}
+	while(num >= 100){
+		num -= 100;
+		digits[1]++;
+	}
+	while(num >= 10){
+		num -= 10;
+		digits[2]++;
+	}
+	while(num >= 1){
+		num--;
+		digits[3]++;
+	}
+	return digits;
+}
 
-	//LCD instructions - initialize
-	// RS=0 R/W=0 DB7=1 (PB5=0 PB6=0 PB15=DB7=1)
-	GPIOB->ODR = (GPIO_ODR_15 & ~(GPIO_ODR_5 | GPIO_ODR_6));
-	handshake();
+void myLCD_Print(uint32_t frequency, uint32_t resistance, char line_mode){
 
-	//LCD instructions - write ASCII codes to display
-	// RS=1 R/W=0 DB7-0=ASCII code (PB5=1 PB6=0)
-	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x30<<8);
-	handshake();
+	char digits[4];
 
-	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x31<<8);
-	handshake();
+	switch(line_mode){
 
-	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x32<<8);
-	handshake();
+	case 3:
+			// For debugging only
+			line_mode == 1;
 
+	case 1:
+			if(line_mode == 3) line_mode = 2;
+		//Write first line
 
-	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x33<<8);
-	handshake();
+		//LCD instructions - initialize
+		// RS=0 R/W=0 DB7=1 (PB5=0 PB6=0 PB15=DB7=1)
+		GPIOB->ODR = (GPIO_ODR_15 & ~(GPIO_ODR_5 | GPIO_ODR_6));
+		handshake();
 
+		//Print "F"
+		GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x46<<8);
+		handshake();
+		//Print ":"
+		GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x3A<<8);
+		handshake();
 
-	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x34<<8);
-	handshake();
+		//Print digits
+		determine_digits(frequency, digits);
+		//Print the digits
+		for(int i = 0; i < 4; i++){
+			//LCD instructions - write ASCII codes to display
+			// RS=1 R/W=0 DB7-0=ASCII code (PB5=1 PB6=0)
+			digits[i] += 48; //Convert to ASCII code
+			GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(digits[i]<<8);
+			handshake();
+		}
 
-	//Write second line
+		//Print "Hz"
+		GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x48<<8);
+		handshake();
+		GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x7A<<8);
+		handshake();
+		// Deliberate no break at end of case (for debugging)
 
-	//LCD instructions - initialize
-	// RS=0 R/W=0 DB7=1 DB6=1 (PB5=0 PB6=0 PB15=DB7=1 PB14=DB6=1)
-	GPIOB->ODR = ((GPIO_ODR_15 | GPIO_ODR_14) & ~(GPIO_ODR_5 | GPIO_ODR_6));
-	handshake();
+//	//LCD instructions - write ASCII codes to display
+//	// RS=1 R/W=0 DB7-0=ASCII code (PB5=1 PB6=0)
+//	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x30<<8);
+//	handshake();
+//
+//	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x31<<8);
+//	handshake();
+//
+//	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x32<<8);
+//	handshake();
+//
+//
+//	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x33<<8);
+//	handshake();
+//
+//
+//	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x34<<8);
+//	handshake();
 
-	//LCD instructions - write ASCII codes to display
-	// RS=1 R/W=0 DB7-0=ASCII code (PB5=1 PB6=0)
-	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x39<<8);
-	handshake();
+	case 2:
 
-	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x38<<8);
-	handshake();
+		//Write second line
 
-	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x37<<8);
-	handshake();
+		//LCD instructions - initialize
+		// RS=0 R/W=0 DB7=1 DB6=1 (PB5=0 PB6=0 PB15=DB7=1 PB14=DB6=1)
+		GPIOB->ODR = ((GPIO_ODR_15 | GPIO_ODR_14) & ~(GPIO_ODR_5 | GPIO_ODR_6));
+		handshake();
 
-	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x36<<8);
-	handshake();
+		//Print "R"
+		GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x52<<8);
+		handshake();
+		//Print ":"
+		GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x3A<<8);
+		handshake();
 
-	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x35<<8);
-	handshake();
+		//Print digits
+		determine_digits(resistance, digits);
+		//Print the digits
+		for(int i = 0; i < 4; i++){
+			//LCD instructions - write ASCII codes to display
+			// RS=1 R/W=0 DB7-0=ASCII code (PB5=1 PB6=0)
+			digits[i] += 48; //Convert to ASCII code
+			GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(digits[i]<<8);
+			handshake();
+		}
+
+		//Print "Oh"
+		GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x4F<<8);
+		handshake();
+		GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x68<<8);
+		handshake();
+		// Deliberate no break at end of case (for debugging)
+	}
+
+//	//LCD instructions - write ASCII codes to display
+//	// RS=1 R/W=0 DB7-0=ASCII code (PB5=1 PB6=0)
+//	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x39<<8);
+//	handshake();
+//
+//	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x38<<8);
+//	handshake();
+//
+//	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x37<<8);
+//	handshake();
+//
+//	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x36<<8);
+//	handshake();
+//
+//	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x35<<8);
+//	handshake();
 
 
 
@@ -364,9 +450,11 @@ void freq_calc(void){
 				double freq = (double)CLOCKSPEED/count; // Hz
 				double period = 1000000/freq; // microseconds
 			//	- Print calculated values to the console.
+				myLCD_Print((uint32_t)(freq < 0 ? (freq - 0.5) : (freq + 0.5)), 0, 1);
+//				myLCD_Print(0, (uint32_t)(period < 0 ? (period - 0.5) : (period + 0.5)), 2);// For debugging
 			// TODO: Write to display instead of trace_printf
-				trace_printf("%d Hz\n", (uint32_t)(freq < 0 ? (freq - 0.5) : (freq + 0.5)));
-				trace_printf("%d microseconds\n", (uint32_t)(period < 0 ? (period - 0.5) : (period + 0.5)));
+//				trace_printf("%d Hz\n", (uint32_t)(freq < 0 ? (freq - 0.5) : (freq + 0.5)));
+//				trace_printf("%d microseconds\n", (uint32_t)(period < 0 ? (period - 0.5) : (period + 0.5)));
 			//	  NOTE: Function trace_printf does not work
 			//	  with floating-point numbers: you must use
 			//	  "unsigned int" type to print your signal
