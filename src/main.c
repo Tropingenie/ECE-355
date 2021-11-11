@@ -92,7 +92,8 @@ main(int argc, char* argv[])
 		// Smoke pot
 		if((ADC1->ISR & ADC_ISR_EOC) != 0){
 
-			resistance = (resistance + 1)%1234;
+			resistance = ADC1->DR;
+			DAC->DHR12R1 = resistance;
 
 		}
 	}
@@ -111,6 +112,8 @@ void myGPIOA_Init()
 	/* Configure PA2 as input */
 	// Relevant register: GPIOA->MODER
 	GPIOA->MODER &= ~(GPIO_MODER_MODER2_0);
+	GPIOA->MODER |= GPIO_MODER_MODER4;//Set PA4 to analog mode
+	GPIOA->MODER |= GPIO_MODER_MODER5;//Set PA5 to analog mode
 
 	/* Ensure no pull-up/pull-down for PA2 */
 	// Relevant register: GPIOA->PUPDR
@@ -147,6 +150,8 @@ void ADC1_Init(void){
 	ADC1->CFGR1 &= ~(ADC_CFGR1_RES|ADC_CFGR1_ALIGN);
 	ADC1->CFGR1 |= (ADC_CFGR1_OVRMOD|ADC_CFGR1_CONT);
 
+//	ADC->IN5
+
 	ADC1->CR |= ADC_CR_ADEN;
 	ADC1->CR &= ~ADC_CR_ADDIS;
 	ADC1->CR |= ADC_CR_ADSTART;
@@ -154,6 +159,10 @@ void ADC1_Init(void){
 
 void DAC1_Init(void){
 	RCC->APB1ENR |= RCC_APB1ENR_DACEN;
+
+	DAC->CR |= DAC_CR_EN1;
+	DAC->CR &= ~(DAC_CR_BOFF1|DAC_CR_TEN1);
+
 }
 
 void handshake(){
