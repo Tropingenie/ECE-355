@@ -53,8 +53,13 @@
 #define CLOCKSPEED 48000000
 
 void myGPIOA_Init(void);
+void myGPIOB_Init(void);
 void myTIM2_Init(void);
 void myEXTI_Init(void);
+void myLCD_Init(void);
+void ADC1_Init(void);
+void DAC1_Init(void);
+void myLCD_Print(uint32_t frequency);
 
 
 // Declare/initialize your global variables here...
@@ -63,6 +68,7 @@ void myEXTI_Init(void);
 // whether TIM2 has started counting or not.
 volatile char first_edge = TRUE;
 volatile char measure_pa1 = FALSE;
+volatile uint32_t resistance;
 
 int
 main(int argc, char* argv[])
@@ -75,13 +81,20 @@ main(int argc, char* argv[])
 	myGPIOB_Init();		/* Initialize I/O port PB */
 	myTIM2_Init();		/* Initialize timer TIM2 */
 	myEXTI_Init();		/* Initialize EXTI */
-	myLCD_init();		/* Initialize LCD */
+	myLCD_Init();		/* Initialize LCD */
+	ADC1_Init();			/* Initialize ADC */
+	DAC1_Init();			/* Initialize DAC */
 
 
 	while (1)
 	{
 //		myLCD_Print(1234, 5678, 3);
 		// Smoke pot
+		if((ADC1->ISR & ADC_ISR_EOC) != 0){
+
+			resistance = (resistance + 1)%1234;
+
+		}
 	}
 
 	return 0;
@@ -127,6 +140,22 @@ void myGPIOB_Init()
 	GPIOB->PUPDR &= ~(GPIO_MODER_MODER4_0 | GPIO_MODER_MODER5_0 | GPIO_MODER_MODER6_0 | GPIO_MODER_MODER8_0 | GPIO_MODER_MODER9_0 | GPIO_MODER_MODER10_0 | GPIO_MODER_MODER11_0 | GPIO_MODER_MODER12_0 | GPIO_MODER_MODER13_0 | GPIO_MODER_MODER14_0 | GPIO_MODER_MODER15_0);
 }
 
+void ADC1_Init(void){
+	RCC->APB2ENR |= RCC_APB2ENR_ADCEN;
+	ADC1->SMPR = 0x7;
+	ADC1->CHSELR |= ADC_CHSELR_CHSEL5;
+	ADC1->CFGR1 &= ~(ADC_CFGR1_RES|ADC_CFGR1_ALIGN);
+	ADC1->CFGR1 |= (ADC_CFGR1_OVRMOD|ADC_CFGR1_CONT);
+
+	ADC1->CR |= ADC_CR_ADEN;
+	ADC1->CR &= ~ADC_CR_ADDIS;
+	ADC1->CR |= ADC_CR_ADSTART;
+}
+
+void DAC1_Init(void){
+	RCC->APB1ENR |= RCC_APB1ENR_DACEN;
+}
+
 void handshake(){
 	// Set PB4 to 1 (assert "Enable")
 	GPIOB->ODR |= GPIO_ODR_4;
@@ -141,7 +170,7 @@ void handshake(){
 	while ((GPIOB->IDR & GPIO_IDR_7) != 0);
 }
 
-void myLCD_init(){
+void myLCD_Init(){
 	//Function set
 	// DB5 needs to be set to 1 (PB13=DB5=1)
 	// DL=1 - DDRAM access is performed using 8-bit interface (PB12=DB4=1)
@@ -169,7 +198,7 @@ void myLCD_init(){
 	handshake();
 }
 
-char determine_digits(uint32_t num, char* digits){
+void determine_digits(uint32_t num, char* digits){
 
 	// Determine the number of each position
 	digits[0] = digits[1] = digits[2] = digits[3] = 0;
@@ -189,21 +218,12 @@ char determine_digits(uint32_t num, char* digits){
 		num--;
 		digits[3]++;
 	}
-	return digits;
 }
 
-void myLCD_Print(uint32_t frequency, uint32_t resistance, char line_mode){
+void myLCD_Print(uint32_t frequency){
 
 	char digits[4];
 
-	switch(line_mode){
-
-	case 3:
-			// For debugging only
-			line_mode == 1;
-
-	case 1:
-			if(line_mode == 3) line_mode = 2;
 		//Write first line
 
 		//LCD instructions - initialize
@@ -255,8 +275,6 @@ void myLCD_Print(uint32_t frequency, uint32_t resistance, char line_mode){
 //	GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x34<<8);
 //	handshake();
 
-	case 2:
-
 		//Write second line
 
 		//LCD instructions - initialize
@@ -287,8 +305,7 @@ void myLCD_Print(uint32_t frequency, uint32_t resistance, char line_mode){
 		handshake();
 		GPIOB->ODR = ((GPIO_ODR_5) & ~(GPIO_ODR_6))|(0x68<<8);
 		handshake();
-		// Deliberate no break at end of case (for debugging)
-	}
+
 
 //	//LCD instructions - write ASCII codes to display
 //	// RS=1 R/W=0 DB7-0=ASCII code (PB5=1 PB6=0)
@@ -450,7 +467,7 @@ void freq_calc(void){
 				double freq = (double)CLOCKSPEED/count; // Hz
 				double period = 1000000/freq; // microseconds
 			//	- Print calculated values to the console.
-				myLCD_Print((uint32_t)(freq < 0 ? (freq - 0.5) : (freq + 0.5)), 0, 1);
+				myLCD_Print((uint32_t)(freq < 0 ? (freq - 0.5) : (freq + 0.5)));
 //				myLCD_Print(0, (uint32_t)(period < 0 ? (period - 0.5) : (period + 0.5)), 2);// For debugging
 			// TODO: Write to display instead of trace_printf
 //				trace_printf("%d Hz\n", (uint32_t)(freq < 0 ? (freq - 0.5) : (freq + 0.5)));
