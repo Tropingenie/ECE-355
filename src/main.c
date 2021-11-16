@@ -52,6 +52,8 @@
 
 #define CLOCKSPEED 48000000
 
+#define CURRENT 0.8 // Experimentally determined linearized current about R ~= 2500Ohm
+
 void myGPIOA_Init(void);
 void myGPIOB_Init(void);
 void myTIM2_Init(void);
@@ -85,15 +87,26 @@ main(int argc, char* argv[])
 	ADC1_Init();			/* Initialize ADC */
 	DAC1_Init();			/* Initialize DAC */
 
+	uint32_t voltage;
+	double fvoltage;
+	double fresistance;
 
 	while (1)
 	{
 //		myLCD_Print(1234, 5678, 3);
-		// Smoke pot
 		if((ADC1->ISR & ADC_ISR_EOC) != 0){
 
-			resistance = ADC1->DR;
-			DAC->DHR12R1 = resistance;
+			// Take the lower 12 bits of the ADC_DR
+			voltage = (ADC1->DR) & (0x0FFF);
+
+			// Convert to a resistance (floating point) using linearization of current
+			fresistance = voltage/CURRENT;
+
+			//Convert to int and write to global variable
+			resistance = (uint32_t)(fresistance < 0 ? (fresistance - 0.5) : (fresistance + 0.5));
+
+			// Write the voltage to the DAC
+			DAC->DHR12R1 = voltage;
 
 		}
 	}
